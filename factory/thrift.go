@@ -11,6 +11,8 @@ import (
 	"tcplayer/deliver"
 )
 
+const ThriftMaxBufferSize int = 4096
+
 // TCP -> Thrift
 var thriftStreamCount uint64 = 0
 
@@ -47,7 +49,7 @@ func (f *ThriftStreamFactory) handleThriftStream(r io.Reader) {
 		sender.Data() <- header
 
 		for {
-			buf := make([]byte, 100)
+			buf := make([]byte, ThriftMaxBufferSize)
 			if n, err := io.ReadFull(r, buf); err != nil {
 				log.Errorf("ThriftStreamFactory read full failed %s", err)
 				if n > 0 {

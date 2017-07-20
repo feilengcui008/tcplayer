@@ -12,6 +12,8 @@ import (
 	"tcplayer/deliver"
 )
 
+const VideoPacketMaxBufferSize int = 4096
+
 // TCP -> VideoPacket
 var videoPacketStreamCount uint64 = 0
 
@@ -66,7 +68,7 @@ func (f *VideoPacketStreamFactory) handleVideoPacketRaw(r io.Reader) {
 
 		for {
 			// buf must in loop for avoiding race condition
-			buf := make([]byte, 4096)
+			buf := make([]byte, VideoPacketMaxBufferSize)
 			// when error happens, we go to outer loop
 			// and try to refind a valid request
 			if n, err := io.ReadFull(r, buf); err != nil {

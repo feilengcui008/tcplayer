@@ -11,6 +11,8 @@ import (
 	"tcplayer/deliver"
 )
 
+const GrpcMaxBufferSize int = 4096
+
 // TCP -> GRPC
 var grpcStreamCount uint64 = 0
 
@@ -44,7 +46,7 @@ func (f *GrpcStreamFactory) handleGRPCStream(r io.Reader) {
 	}
 
 	for {
-		buf := make([]byte, 4096)
+		buf := make([]byte, GrpcMaxBufferSize)
 		if _, err := io.ReadFull(r, buf); err != nil {
 			log.Errorf("Grpc read full failed %s", err)
 			return
