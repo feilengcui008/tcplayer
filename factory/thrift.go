@@ -3,12 +3,12 @@ package factory
 import (
 	"context"
 	log "github.com/Sirupsen/logrus"
+	"github.com/feilengcui008/tcplayer/deliver"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/tcpassembly"
 	"github.com/google/gopacket/tcpassembly/tcpreader"
 	"io"
 	"sync/atomic"
-	"tcplayer/deliver"
 )
 
 const ThriftMaxBufferSize int = 4096

@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/binary"
 	log "github.com/Sirupsen/logrus"
+	"github.com/feilengcui008/tcplayer/deliver"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/tcpassembly"
 	"github.com/google/gopacket/tcpassembly/tcpreader"
 	"io"
 	"sync/atomic"
-	"tcplayer/deliver"
 )
 
 const VideoPacketMaxBufferSize int = 4096

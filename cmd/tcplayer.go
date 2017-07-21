@@ -5,13 +5,13 @@ import (
 	"flag"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/feilengcui008/tcplayer/deliver"
+	"github.com/feilengcui008/tcplayer/factory"
+	"github.com/feilengcui008/tcplayer/source"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/tcpassembly"
 	"os"
-	"tcplayer/deliver"
-	"tcplayer/factory"
-	"tcplayer/source"
 	"time"
 )
 

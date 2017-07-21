@@ -3,6 +3,7 @@ package factory
 import (
 	"bufio"
 	log "github.com/Sirupsen/logrus"
+	"github.com/feilengcui008/tcplayer/deliver"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/tcpassembly"
 	"github.com/google/gopacket/tcpassembly/tcpreader"
@@ -10,7 +11,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"sync/atomic"
-	"tcplayer/deliver"
 )
 
 // TCP -> HTTP 1.x
