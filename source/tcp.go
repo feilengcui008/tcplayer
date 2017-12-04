@@ -15,9 +15,9 @@ package source
 
 import (
 	"context"
-	log "github.com/Sirupsen/logrus"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcapgo"
+	log "github.com/sirupsen/logrus"
 	"net"
 )
 
