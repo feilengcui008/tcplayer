@@ -41,8 +41,37 @@ type LongConnSender struct {
 	Stat       *Stat
 }
 
+func (s *LongConnSender) readOne(idx int) {
+	if !s.ConnState[idx] {
+		return
+	}
+	buf := make([]byte, 4096)
+	for {
+		select {
+		case <-s.Ctx.Done():
+			return
+		default:
+			if _, err := io.ReadFull(s.Remotes[idx], buf); err != nil {
+				log.Errorf("Read from remote %s failed %s", s.RemoteAddr, err)
+				s.Remotes[idx].Close()
+				s.ConnState[idx] = false
+				return
+			}
+		}
+	}
+}
+
 func (s *LongConnSender) run() {
 	defer s.destroy()
+
+	// read out and comsume data
+	for idx, conn := range s.Remotes {
+		if !s.ConnState[idx] {
+			continue
+		}
+		go s.readOne(idx)
+	}
+
 	for {
 		select {
 		case <-s.Ctx.Done():
