@@ -28,7 +28,6 @@ type ClientConfig struct {
 	Clone      int
 }
 
-// Client
 type Client struct {
 	Idx    int
 	Config *ClientConfig
@@ -38,14 +37,16 @@ type Client struct {
 }
 
 func NewClient(ctx context.Context, c *ClientConfig) (*Client, error) {
-	client := &Client{Config: c}
-	creator := NewLongConnSender
+	var (
+		client  = &Client{Config: c}
+		creator = NewLongConnSender
+	)
 	if !c.IsLong {
 		creator = NewShortConnSender
 	}
 	s, err := creator(ctx, 1, c.RemoteAddr)
 	if err != nil {
-		return nil, fmt.Errorf("NewClient failed %s", err)
+		return nil, fmt.Errorf("create client failed: %s", err)
 	}
 	client.S = s
 	return client, nil

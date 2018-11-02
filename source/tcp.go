@@ -15,10 +15,11 @@ package source
 
 import (
 	"context"
+	"net"
+
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcapgo"
 	log "github.com/sirupsen/logrus"
-	"net"
 )
 
 type TcpSourceConfig struct {
@@ -31,7 +32,7 @@ func NewTcpSource(ctx context.Context, c *TcpSourceConfig) (chan *gopacket.Packe
 	go func(ch chan *gopacket.PacketSource) {
 		l, err := net.Listen("tcp", c.Address)
 		if err != nil {
-			log.Errorf("Listening on %s failed %s", c.Address, err)
+			log.Errorf("listening on %s failed: %v", c.Address, err)
 			return
 		}
 		defer l.Close()
@@ -42,9 +43,9 @@ func NewTcpSource(ctx context.Context, c *TcpSourceConfig) (chan *gopacket.Packe
 				return
 			default:
 				if conn, err := l.Accept(); err != nil {
-					log.Errorf("Accept error %s", err)
+					log.Errorf("accept error: %v", err)
 				} else if handle, err := pcapgo.NewReader(conn); err != nil {
-					log.Errorf("Pcapgo new reader failed %s", err)
+					log.Errorf("pcapgo new reader failed: %v", err)
 				} else {
 					pktSource := gopacket.NewPacketSource(handle, handle.LinkType())
 					ch <- pktSource

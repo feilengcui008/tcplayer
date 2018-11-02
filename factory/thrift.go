@@ -15,19 +15,20 @@ package factory
 
 import (
 	"context"
+	"io"
+	"sync/atomic"
+
 	"github.com/feilengcui008/tcplayer/deliver"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/tcpassembly"
 	"github.com/google/gopacket/tcpassembly/tcpreader"
 	log "github.com/sirupsen/logrus"
-	"io"
-	"sync/atomic"
 )
 
 const ThriftMaxBufferSize int = 4096
 
 // TCP -> Thrift
-var thriftStreamCount uint64 = 0
+var thriftStreamCount uint64
 
 type ThriftStreamFactory struct {
 	d *deliver.Deliver
@@ -36,7 +37,7 @@ type ThriftStreamFactory struct {
 func (f *ThriftStreamFactory) New(l, r gopacket.Flow) tcpassembly.Stream {
 	s := tcpreader.NewReaderStream()
 	n := atomic.AddUint64(&thriftStreamCount, 1)
-	log.Debugf("Stream Count %d", n)
+	log.Debugf("stream count %d", n)
 	go f.handleThriftStream(&s)
 	return &s
 }
@@ -44,27 +45,23 @@ func (f *ThriftStreamFactory) New(l, r gopacket.Flow) tcpassembly.Stream {
 func (f *ThriftStreamFactory) handleThriftStream(r io.Reader) {
 	ctx, cancel := context.WithCancel(f.d.Ctx)
 	defer cancel()
-
 	sender, err := deliver.NewLongConnSender(ctx, f.d.Config.Clone+1, f.d.Config.RemoteAddr)
 	if err != nil {
-		log.Errorf("ThriftStreamFactory create sender error %s", err)
+		log.Errorf("hriftStreamFactory create sender error: %v", err)
 		return
 	}
-
 	for {
-		// we assume the following packets are valid
-		// thrift requests
+		// we assume the following packets are valid thrift requests
 		header, err := f.parseThriftMessageHeader(r)
 		if err != nil {
-			log.Errorf("ThriftStreamFactory parse thrift message header failed %s", err)
+			log.Errorf("ThriftStreamFactory parse thrift message header failed: %v", err)
 			return
 		}
 		sender.Data() <- header
-
 		for {
 			buf := make([]byte, ThriftMaxBufferSize)
 			if n, err := io.ReadFull(r, buf); err != nil {
-				log.Errorf("ThriftStreamFactory read full failed %s", err)
+				log.Errorf("ThriftStreamFactory read full failed: %v", err)
 				if n > 0 {
 					sender.Data() <- buf[:n]
 				}
@@ -84,10 +81,10 @@ func (f *ThriftStreamFactory) parseThriftMessageHeader(r io.Reader) ([]byte, err
 	vThirdByte := make([]byte, 1)
 	vFourthByte := make([]byte, 1)
 	for {
-		// we loop until find a valid first byte
+		// loop until find a valid first byte
 		for {
 			if _, err := io.ReadFull(r, vFirstByte); err != nil || int(vFirstByte[0]) != 128 {
-				log.Debugf("ThriftStreamFactory read version first byte failed %s %v", err)
+				log.Debugf("ThriftStreamFactory read version first byte failed: %v", err)
 				if err == io.EOF {
 					return nil, err
 				}
@@ -96,14 +93,14 @@ func (f *ThriftStreamFactory) parseThriftMessageHeader(r io.Reader) ([]byte, err
 			break
 		}
 		if _, err := io.ReadFull(r, vSecondByte); err != nil || int(vSecondByte[0]) != 1 {
-			log.Debugf("ThriftStreamFactory read version second byte failed %s", err)
+			log.Debugf("ThriftStreamFactory read version second byte failed: %v", err)
 			if err == io.EOF {
 				return nil, err
 			}
 			continue
 		}
 		if _, err := io.ReadFull(r, vThirdByte); err != nil || int(vThirdByte[0]) != 0 {
-			log.Debugf("ThriftStreamFactory read version third byte failed %s", err)
+			log.Debugf("ThriftStreamFactory read version third byte failed: %v", err)
 			if err == io.EOF {
 				return nil, err
 			}
@@ -111,14 +108,14 @@ func (f *ThriftStreamFactory) parseThriftMessageHeader(r io.Reader) ([]byte, err
 		}
 
 		if _, err := io.ReadFull(r, vFourthByte); err != nil || int(vFourthByte[0]) > 7 || int(vFourthByte[0]) < 0 {
-			log.Debugf("ThriftStreamFactory read version fourth byte failed %s", err)
+			log.Debugf("ThriftStreamFactory read version fourth byte failed: %v", err)
 			if err == io.EOF {
 				return nil, err
 			}
 			continue
 		}
 		msgHdr := []byte{vFirstByte[0], vSecondByte[0], vThirdByte[0], vFourthByte[0]}
-		log.Debugf("ThriftStreamFactory got a valid request header %v", msgHdr)
+		log.Debugf("ThriftStreamFactory got a valid request header: %v", msgHdr)
 		return msgHdr, nil
 	}
 }

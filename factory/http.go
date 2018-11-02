@@ -15,19 +15,20 @@ package factory
 
 import (
 	"bufio"
+	"io"
+	"net/http"
+	"net/http/httputil"
+	"sync/atomic"
+
 	"github.com/feilengcui008/tcplayer/deliver"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/tcpassembly"
 	"github.com/google/gopacket/tcpassembly/tcpreader"
 	log "github.com/sirupsen/logrus"
-	"io"
-	"net/http"
-	"net/http/httputil"
-	"sync/atomic"
 )
 
 // TCP -> HTTP 1.x
-var httpStreamCount uint64 = 0
+var httpStreamCount uint64
 
 type HTTPStreamFactory struct {
 	d *deliver.Deliver
@@ -35,9 +36,9 @@ type HTTPStreamFactory struct {
 
 func (f *HTTPStreamFactory) New(l, r gopacket.Flow) tcpassembly.Stream {
 	s := tcpreader.NewReaderStream()
-	httpStreamCount += 1
+	httpStreamCount++
 	n := atomic.AddUint64(&httpStreamCount, 1)
-	log.Debugf("Stream Count %d", n)
+	log.Debugf("stream count %d", n)
 	go f.handleHTTPRequest(&s)
 	return &s
 }
@@ -52,7 +53,7 @@ func (f *HTTPStreamFactory) handleHTTPRequest(r io.Reader) {
 		if req, err := http.ReadRequest(buf); err == io.EOF {
 			return
 		} else if err != nil {
-			log.Errorf("parsing http request error %s", err)
+			log.Errorf("parsing http request error: %v", err)
 		} else {
 			data, _ := httputil.DumpRequest(req, true)
 			f.d.C <- data

@@ -19,10 +19,11 @@ package deliver
 import (
 	"context"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Sender interface {
@@ -52,7 +53,7 @@ func (s *LongConnSender) readOne(idx int) {
 			return
 		default:
 			if _, err := io.ReadFull(s.Remotes[idx], buf); err != nil {
-				log.Errorf("Read from remote %s failed %s", s.RemoteAddr, err)
+				log.Errorf("read from remote %s failed: %v", s.RemoteAddr, err)
 				s.Remotes[idx].Close()
 				s.ConnState[idx] = false
 				return
@@ -65,7 +66,7 @@ func (s *LongConnSender) run() {
 	defer s.destroy()
 
 	// read out and comsume data
-	for idx, conn := range s.Remotes {
+	for idx, _ := range s.Remotes {
 		if !s.ConnState[idx] {
 			continue
 		}
@@ -77,11 +78,11 @@ func (s *LongConnSender) run() {
 		case <-s.Ctx.Done():
 			return
 		case req := <-s.C:
-			s.Stat.TotalRequest += 1
+			s.Stat.TotalRequest++
 			now := time.Now()
 			if now.After(s.Stat.LastStatTime.Add(time.Second * 1)) {
 				s.Stat.RequestPerSecond = s.Stat.TotalRequest - s.Stat.LastTotalRequest
-				log.Infof("Remote[%s] total reqs %d, %d reqs/s", s.RemoteAddr, s.Stat.TotalRequest, s.Stat.RequestPerSecond)
+				log.Infof("remote %s total reqs %d, %d reqs/s", s.RemoteAddr, s.Stat.TotalRequest, s.Stat.RequestPerSecond)
 				s.Stat.LastTotalRequest = s.Stat.TotalRequest
 				s.Stat.LastStatTime = now
 			}
@@ -90,7 +91,7 @@ func (s *LongConnSender) run() {
 					continue
 				}
 				if _, err := conn.Write(req); err != nil {
-					log.Errorf("Write to remote %s failed %s", s.RemoteAddr, err)
+					log.Errorf("write to remote %s failed: %v", s.RemoteAddr, err)
 					s.Remotes[idx].Close()
 					s.ConnState[idx] = false
 				}
@@ -127,7 +128,7 @@ func NewLongConnSender(ctx context.Context, n int, addr string) (Sender, error) 
 	for i := 0; i < n; i++ {
 		conn, err := net.Dial("tcp", addr)
 		if err != nil {
-			err = fmt.Errorf("Connect to remote %s failed %s", s.RemoteAddr, err)
+			err = fmt.Errorf("connect to remote %s failed: %v", s.RemoteAddr, err)
 			s.destroy()
 			return nil, err
 		}
@@ -154,11 +155,11 @@ func (s *ShortConnSender) run() {
 		case <-s.Ctx.Done():
 			return
 		case req := <-s.C:
-			s.Stat.TotalRequest += 1
+			s.Stat.TotalRequest++
 			now := time.Now()
 			if now.After(s.Stat.LastStatTime.Add(time.Second * 1)) {
 				s.Stat.RequestPerSecond = s.Stat.TotalRequest - s.Stat.LastTotalRequest
-				log.Infof("Remote[%s] total reqs %d, %d reqs/s", s.RemoteAddr, s.Stat.TotalRequest, s.Stat.RequestPerSecond)
+				log.Infof("remote %s total reqs %d, %d reqs/s", s.RemoteAddr, s.Stat.TotalRequest, s.Stat.RequestPerSecond)
 				s.Stat.LastTotalRequest = s.Stat.TotalRequest
 				s.Stat.LastStatTime = now
 			}
@@ -172,12 +173,12 @@ func (s *ShortConnSender) run() {
 func (s *ShortConnSender) sendOne(req []byte) {
 	conn, err := net.Dial("tcp", s.RemoteAddr)
 	if err != nil {
-		log.Errorf("Send one to remote %s failed %s", s.RemoteAddr, err)
+		log.Errorf("send one to remote %s failed: %v", s.RemoteAddr, err)
 		return
 	}
 	defer conn.Close()
 	if _, err := conn.Write(req); err != nil {
-		log.Errorf("Write one to remote %s failed %s", s.RemoteAddr, err)
+		log.Errorf("write one to remote %s failed: %v", s.RemoteAddr, err)
 	}
 	// try to cunsume response for 3 seconds
 	tm := time.After(time.Second * time.Duration(3))
