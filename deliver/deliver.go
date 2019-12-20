@@ -29,14 +29,19 @@ const (
 	ModeRequest ModeType = iota
 	ModeRaw
 )
+const (
+	TBinaryProtocol = iota
+	TCompactProtocol
+)
 
 type DeliverConfig struct {
-	IsLong      bool
-	Concurrency int
-	RemoteAddr  string
-	Last        int
-	Clone       int
-	Mode        ModeType
+	IsLong       bool
+	Concurrency  int
+	RemoteAddr   string
+	Last         int
+	Clone        int
+	ProtocolType int
+	Mode         ModeType
 }
 
 type Deliver struct {
