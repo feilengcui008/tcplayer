@@ -47,12 +47,16 @@ func (f *ThriftStreamFactory) handleThriftStream(r io.Reader) {
 	defer cancel()
 	sender, err := deliver.NewLongConnSender(ctx, f.d.Config.Clone+1, f.d.Config.RemoteAddr)
 	if err != nil {
-		log.Errorf("hriftStreamFactory create sender error: %v", err)
+		log.Errorf("thriftStreamFactory create sender error: %v", err)
 		return
+	}
+	parser := f.parseThriftBinaryMessageHeader
+	if f.d.Config.ProtocolType == deliver.TCompactProtocol {
+		parser = f.parseThriftCompactMessageHeader
 	}
 	for {
 		// we assume the following packets are valid thrift requests
-		header, err := f.parseThriftMessageHeader(r)
+		header, err := parser(r)
 		if err != nil {
 			log.Errorf("ThriftStreamFactory parse thrift message header failed: %v", err)
 			return
@@ -72,10 +76,59 @@ func (f *ThriftStreamFactory) handleThriftStream(r io.Reader) {
 	}
 }
 
+// https://github.com/apache/thrift/blob/master/doc/specs/thrift-compact-protocol.md
+/*
+Compact protocol Message (4+ bytes):
++--------+--------+--------+...+--------+--------+...+--------+--------+...+--------+
+|pppppppp|mmmvvvvv| seq id              | name length         | name                |
++--------+--------+--------+...+--------+--------+...+--------+--------+...+--------+
+Where:
+    * pppppppp is the protocol id, fixed to 1000 0010, 0x82.
+    * mmm is the message type, an unsigned 3 bit integer.
+    * vvvvv is the version, an unsigned 5 bit integer, fixed to 00001.
+    * seq id is the sequence id, a signed 32 bit integer encoded as a var int.
+    * name length is the byte length of the name field, a signed 32 bit integer encoded as a var int (must be >= 0).
+    * name is the method name to invoke, a UTF-8 encoded string.)
+*/
+func (f *ThriftStreamFactory) parseThriftCompactMessageHeader(r io.Reader) ([]byte, error) {
+	vFirstByte := make([]byte, 1)
+	vSecondByte := make([]byte, 1)
+	for {
+		// loop until find a valid first byte
+		for {
+			if _, err := io.ReadFull(r, vFirstByte); err != nil || int(vFirstByte[0]) != 0x82 {
+				log.Debugf("ThriftStreamFactory read version first byte failed: %v", err)
+				if err == io.EOF {
+					return nil, err
+				}
+				continue
+			}
+			break
+		}
+		if _, err := io.ReadFull(r, vSecondByte); err != nil || (int(vSecondByte[0])&0x1f) != 1 {
+			log.Debugf("ThriftStreamFactory read version second byte failed: %v", err)
+			if err == io.EOF {
+				return nil, err
+			}
+			continue
+		}
+		msgHdr := []byte{vFirstByte[0], vSecondByte[0]}
+		log.Debugf("ThriftStreamFactory got a valid request header: %v", msgHdr)
+		return msgHdr, nil
+	}
+}
+
+// https://github.com/apache/thrift/blob/master/doc/specs/thrift-binary-protocol.md
+/*
+Binary protocol Message, strict encoding, 12+ bytes:
++--------+--------+--------+--------+--------+--------+--------+--------+--------+...+--------+--------+--------+--------+--------+
+|1vvvvvvv|vvvvvvvv|unused  |00000mmm| name length                       | name                | seq id                            |
++--------+--------+--------+--------+--------+--------+--------+--------+--------+...+--------+--------+--------+--------+--------+
+*/
 // Parse thrift message header, we just use the leading
 // 29 bits to recognize a valid thrift message.
 // 10000000 00000001 00000000 00000xxx
-func (f *ThriftStreamFactory) parseThriftMessageHeader(r io.Reader) ([]byte, error) {
+func (f *ThriftStreamFactory) parseThriftBinaryMessageHeader(r io.Reader) ([]byte, error) {
 	vFirstByte := make([]byte, 1)
 	vSecondByte := make([]byte, 1)
 	vThirdByte := make([]byte, 1)

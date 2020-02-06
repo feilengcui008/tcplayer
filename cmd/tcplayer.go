@@ -49,6 +49,7 @@ var (
 	concurrency = flag.Int("concurrency", 1, "number of concurrent senders(clients)")
 	last        = flag.Int("last", 0, "number of ms for capturing and replaying requests")
 	mode        = flag.Int("mode", 0, "replay mode, 0 for application layer requests, 1 for raw tcp packets")
+	tprotocol   = flag.Int("tprotocol", 0, "thrft protocol type, 0 for TBinaryProtocol, 1 for TCompactProtocol")
 )
 
 func handleSource(ctx context.Context, assembler *tcpassembly.Assembler, pktSource *gopacket.PacketSource) {
@@ -98,12 +99,13 @@ func main() {
 	defer cancel()
 	// create Deliver
 	dlc := &deliver.DeliverConfig{
-		Clone:       *clone,
-		Concurrency: *concurrency,
-		IsLong:      *long,
-		RemoteAddr:  *raddr,
-		Last:        *last,
-		Mode:        deliver.ModeType(*mode),
+		Clone:        *clone,
+		Concurrency:  *concurrency,
+		IsLong:       *long,
+		RemoteAddr:   *raddr,
+		Last:         *last,
+		ProtocolType: *tprotocol,
+		Mode:         deliver.ModeType(*mode),
 	}
 	d, err := deliver.NewDeliver(ctx, dlc)
 	if err != nil {
@@ -160,7 +162,7 @@ func main() {
 	// tcp source
 	if *lport != "" {
 		tsc := &source.TcpSourceConfig{
-			Address: fmt.Sprintf("::%s", lport),
+			Address: fmt.Sprintf("::%s", *lport),
 		}
 		if sc, err := source.NewTcpSource(ctx, tsc); err != nil {
 			log.Errorf("create TcpSource failed: %v", err)
